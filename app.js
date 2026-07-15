@@ -681,6 +681,12 @@ function playSurah(id, url, startTime = 0) {
     playingEditionId = currentEdition;
     isBuffering      = true;
 
+    if (radioState.isPlaying) pauseRadio();
+    const player = document.getElementById('global-player');
+    if (player) {
+        player.classList.remove('radio-mode');
+    }
+
     // إذا كانت شاشة القراءة مرتبطة بجزء آخر، حدّثها لتتابع الجزء الجديد تلقائياً
     // (يحدث هذا عند التالي/السابق أو الانتقال التلقائي بعد انتهاء المقطع)
     if (readingJuzNum !== null && readingJuzNum !== id) {
@@ -1495,18 +1501,28 @@ function computeLivePosition() {
 function setRadioLoadingUI(isLoading) {
     const btn = document.getElementById('radio-play-btn');
     const icon = document.getElementById('radio-play-icon');
-    if (!btn || !icon) return;
-    btn.classList.toggle('loading', isLoading);
-    icon.innerHTML = isLoading
-        ? '<path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>'
-        : (radioState.isPlaying ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>' : '<path d="M8 5v14l11-7z"/>');
+    const globalPlayBtn = document.getElementById('player-play-btn');
+    
+    if (btn && icon) {
+        btn.classList.toggle('loading', isLoading);
+        icon.innerHTML = isLoading
+            ? '<path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>'
+            : (radioState.isPlaying ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>' : '<path d="M8 5v14l11-7z"/>');
+    }
+
+    if (globalPlayBtn) {
+        globalPlayBtn.innerHTML = isLoading ? icons.loading : (radioState.isPlaying ? icons.pause : icons.play);
+    }
 }
 
 function updateRadioTrackTitle() {
     const el = document.getElementById('radio-track-title');
-    if (!el) return;
+    const globalTitle = document.getElementById('player-track-title');
     const f = radioState.playlist[radioState.currentIndex];
-    el.textContent = f ? f.title : '';
+    const title = f ? f.title : (currentLang === 'ar' ? 'إذاعة الشيخ المعصراوي' : 'Sheikh Al-Maasrawi Radio');
+    
+    if (el) el.textContent = title;
+    if (globalTitle) globalTitle.textContent = title;
 }
 
 function setOnAirIndicator(on) {
@@ -1568,11 +1584,22 @@ function stopRadioResync() {
 
 async function startRadio() {
     // إيقاف مشغل السور الرئيسي حتى لا يتداخل الصوتان
-    if (!audioInstance.paused) audioInstance.pause();
+    if (!audioInstance.paused) {
+        audioInstance.pause();
+        playingSurahId = null;
+        updateSurahListUI();
+    }
+
+    const player = document.getElementById('global-player');
+    if (player) {
+        player.style.display = 'block';
+        player.classList.add('radio-mode');
+    }
 
     setRadioLoadingUI(true);
-    document.getElementById('radio-track-title').textContent =
-        currentLang === 'ar' ? 'جاري تجهيز البث المباشر...' : 'Tuning in to the live broadcast...';
+    const title = currentLang === 'ar' ? 'إذاعة الشيخ المعصراوي' : 'Sheikh Al-Maasrawi Radio';
+    const globalTitle = document.getElementById('player-track-title');
+    if (globalTitle) globalTitle.textContent = title;
 
     const ok = await loadRadioPlaylist();
     if (!ok) { setRadioLoadingUI(false); return; }
@@ -1590,6 +1617,14 @@ function pauseRadio() {
     stopRadioResync();
     setOnAirIndicator(false);
     setRadioLoadingUI(false);
+}
+
+function toggleRadioAction() {
+    if (radioState.isPlaying) {
+        pauseRadio();
+    } else {
+        startRadio();
+    }
 }
 
 function toggleRadioPlayback() {
@@ -1628,6 +1663,10 @@ playSurah = function (...args) {
 
 const _originalTogglePlayPause = togglePlayPause;
 togglePlayPause = function (...args) {
+    if (radioState.isPlaying) {
+        toggleRadioPlayback();
+        return;
+    }
     if (radioState.isPlaying && audioInstance.paused && audioInstance.src) pauseRadio();
     return _originalTogglePlayPause.apply(this, args);
 };

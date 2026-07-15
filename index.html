@@ -69,13 +69,16 @@
             <div class="top-bar-group">
                 <button class="top-btn" onclick="toggleTheme()" id="theme-toggle-btn" aria-label="تبديل المظهر"></button>
 
-                <button class="top-btn radio-btn" onclick="openRadioPanel()" id="radio-toggle-btn" aria-label="إذاعة الشيخ المعصراوي المباشرة" title="الإذاعة المباشرة">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <circle cx="12" cy="12" r="2"></circle>
-                        <path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"></path>
-                    </svg>
-                    <span class="radio-live-dot" id="radio-live-dot" aria-hidden="true"></span>
-                </button>
+                <div class="radio-wrapper">
+                    <button class="top-btn radio-btn" onclick="toggleRadioAction()" id="radio-toggle-btn" aria-label="إذاعة الشيخ المعصراوي المباشرة" title="الإذاعة المباشرة">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"></path>
+                        </svg>
+                        <span class="radio-live-dot" id="radio-live-dot" aria-hidden="true"></span>
+                    </button>
+                    <div class="radio-flash-badge" id="radio-flash-badge">إذاعة الشيخ المعصراوي</div>
+                </div>
 
                 <a href="mailto:contact@egyquran.com" class="top-btn email-btn" aria-label="تواصل معنا عبر البريد الإلكتروني" title="تواصل معنا">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -177,12 +180,7 @@
     <!-- لوحة الإذاعة المباشرة الوهمية -->
     <div id="radio-modal" class="radio-modal" role="dialog" aria-modal="true" aria-labelledby="radio-modal-title" onclick="if(event.target===this) closeRadioPanel()">
         <div class="radio-modal-content">
-            <button class="radio-close-btn" onclick="closeRadioPanel()" aria-label="إغلاق الإذاعة">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
+            <!-- تم نقل التحكم للمشغل السفلي والأيقونة العلوية -->
 
             <div class="radio-live-badge">
                 <span class="radio-live-pulse" aria-hidden="true"></span>
