@@ -1589,17 +1589,10 @@ async function startRadio() {
         updateSurahListUI();
     }
 
-    const player = document.getElementById('global-player');
-    if (player) {
-        player.style.display = 'block';
-        player.classList.add('radio-mode');
-    }
+    // لا نقوم بإظهار المشغل السفلي هنا بناءً على طلب المستخدم
+    // يبقى كل شيء كما هو وتعمل الإذاعة في الخلفية
 
     setRadioLoadingUI(true);
-    const title = currentLang === 'ar' ? 'إذاعة الشيخ المعصراوي' : 'Sheikh Al-Maasrawi Radio';
-    const globalTitle = document.getElementById('player-track-title');
-    if (globalTitle) globalTitle.textContent = title;
-
     const ok = await loadRadioPlaylist();
     if (!ok) { setRadioLoadingUI(false); return; }
 
