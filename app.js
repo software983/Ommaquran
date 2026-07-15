@@ -1600,16 +1600,46 @@ function toggleRadioPlayback() {
     }
 }
 
-function openRadioPanel() {
-    document.getElementById('radio-modal')?.classList.add('show');
+function openRadioBar() {
+    document.getElementById('radio-bar')?.classList.add('show');
+    hideRadioTip();
+
+    // إخفاء المشغل الرئيسي أثناء تشغيل الإذاعة لتفادي وجود مشغلين في آن واحد
+    const mainPlayer = document.getElementById('global-player');
+    if (mainPlayer) mainPlayer.style.display = 'none';
+
     if (!radioState.isPlaying) startRadio();
 }
 
-function closeRadioPanel() {
-    document.getElementById('radio-modal')?.classList.remove('show');
+function closeRadioBar() {
+    document.getElementById('radio-bar')?.classList.remove('show');
     // إغلاق الإذاعة يوقف الصوت تماماً، ولا نحفظ أي موضع؛ في المرة القادمة
     // سيُعاد حساب الموضع الحي من جديد اعتماداً على الوقت الفعلي فقط
     pauseRadio();
+}
+
+// الضغط على أيقونة الإذاعة يشغّلها في أول مرة، ويوقفها إن كانت تعمل بالفعل
+function toggleRadioBar() {
+    if (radioState.isPlaying) {
+        closeRadioBar();
+    } else {
+        openRadioBar();
+    }
+}
+
+// إظهار تلميح صغير أسفل الأيقونة لتعريف المستخدم بالإذاعة
+function showRadioTip() {
+    if (radioState.isPlaying) return;
+    const tip = document.getElementById('radio-tip');
+    if (!tip) return;
+    tip.classList.add('show');
+    clearTimeout(showRadioTip._timer);
+    showRadioTip._timer = setTimeout(() => tip.classList.remove('show'), 4500);
+}
+
+function hideRadioTip() {
+    document.getElementById('radio-tip')?.classList.remove('show');
+    clearTimeout(showRadioTip._timer);
 }
 
 radioAudio.addEventListener('ended', handleRadioFileEnded);
@@ -1622,13 +1652,19 @@ radioAudio.addEventListener('error', () => {
 // إيقاف الإذاعة تلقائياً إذا بدأ المستخدم تشغيل سورة من المشغل الرئيسي
 const _originalPlaySurah = playSurah;
 playSurah = function (...args) {
-    if (radioState.isPlaying) pauseRadio();
+    if (radioState.isPlaying) {
+        pauseRadio();
+        document.getElementById('radio-bar')?.classList.remove('show');
+    }
     return _originalPlaySurah.apply(this, args);
 };
 
 const _originalTogglePlayPause = togglePlayPause;
 togglePlayPause = function (...args) {
-    if (radioState.isPlaying && audioInstance.paused && audioInstance.src) pauseRadio();
+    if (radioState.isPlaying && audioInstance.paused && audioInstance.src) {
+        pauseRadio();
+        document.getElementById('radio-bar')?.classList.remove('show');
+    }
     return _originalTogglePlayPause.apply(this, args);
 };
 
@@ -1641,6 +1677,9 @@ togglePlayPause = function (...args) {
     // تجهيز مدد ملفات الإذاعة في الخلفية دون تشغيل أي شيء، حتى يكون
     // حساب الموضع الحي جاهزاً فوراً عند فتح الإذاعة لأول مرة
     loadRadioPlaylist();
+
+    // تلميح تعريفي بسيط أسفل أيقونة الإذاعة عند فتح التطبيق
+    setTimeout(showRadioTip, 1600);
 
     setPlaybackMode('autonext');
 
