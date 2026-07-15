@@ -355,6 +355,30 @@ body {
     height: 17px;
 }
 
+/* ── إشعار الإذاعة الفليشر ── */
+.radio-flash-badge {
+    position: absolute;
+    top: 100%;
+    margin-top: 6px;
+    background: var(--accent-gold);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px var(--accent-glow);
+    animation: flash-pulse 1.5s infinite ease-in-out;
+    pointer-events: none;
+    z-index: 10;
+}
+
+@keyframes flash-pulse {
+    0% { opacity: 0.7; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.7; transform: scale(0.95); }
+}
+
 .lang-btn {
     font-size: 0.75rem;
     letter-spacing: 0.04em;
@@ -816,6 +840,19 @@ html[dir="ltr"] .dropdown-item.active {
     display: none;
     z-index: 1000;
     transition: box-shadow var(--transition);
+}
+
+/* تحسينات للمشغل عند تشغيل الإذاعة */
+.floating-player.radio-mode .player-seekbar-container,
+.floating-player.radio-mode .player-time,
+.floating-player.radio-mode .player-main-controls .nav-btn,
+.floating-player.radio-mode .player-side-btn {
+    display: none !important;
+}
+
+.floating-player.radio-mode .player-main-controls {
+    justify-content: center;
+    width: 100%;
 }
 
 /* شريط التقدم */
@@ -1599,57 +1636,4 @@ body.dark-theme .ayah-span.active-ayah {
     .radio-live-pulse {
         animation: none !important;
     }
-}
-
-/* ── إشعار الإذاعة الفليشر ── */
-.radio-wrapper {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.radio-flash-badge {
-    position: absolute;
-    top: 100%;
-    margin-top: 6px;
-    background: var(--accent-gold);
-    color: #fff;
-    font-size: 0.6rem;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 4px;
-    white-space: nowrap;
-    box-shadow: 0 2px 8px var(--accent-glow);
-    animation: flash-pulse 1.5s infinite ease-in-out;
-    pointer-events: none;
-    z-index: 10;
-}
-
-@keyframes flash-pulse {
-    0% { opacity: 0.7; transform: scale(0.95); }
-    50% { opacity: 1; transform: scale(1); }
-    100% { opacity: 0.7; transform: scale(0.95); }
-}
-
-/* تحسينات للمشغل عند تشغيل الإذاعة */
-.floating-player.radio-mode .player-seekbar-container {
-    display: none; /* إخفاء شريط التقدم في وضع الإذاعة المباشرة */
-}
-
-.floating-player.radio-mode .player-time {
-    display: none; /* إخفاء الوقت في وضع الإذاعة */
-}
-
-.floating-player.radio-mode .player-main-controls .nav-btn {
-    display: none; /* إخفاء أزرار التنقل في وضع الإذاعة */
-}
-
-.floating-player.radio-mode .player-side-btn {
-    display: none; /* إخفاء الأزرار الجانبية */
-}
-
-.floating-player.radio-mode .player-main-controls {
-    justify-content: center;
-    width: 100%;
 }

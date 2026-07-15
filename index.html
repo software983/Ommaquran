@@ -69,7 +69,7 @@
             <div class="top-bar-group">
                 <button class="top-btn" onclick="toggleTheme()" id="theme-toggle-btn" aria-label="تبديل المظهر"></button>
 
-                <div class="radio-wrapper">
+                <div class="radio-wrapper" style="position: relative; display: flex; flex-direction: column; align-items: center;">
                     <button class="top-btn radio-btn" onclick="toggleRadioAction()" id="radio-toggle-btn" aria-label="إذاعة الشيخ المعصراوي المباشرة" title="الإذاعة المباشرة">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <circle cx="12" cy="12" r="2"></circle>
@@ -180,7 +180,12 @@
     <!-- لوحة الإذاعة المباشرة الوهمية -->
     <div id="radio-modal" class="radio-modal" role="dialog" aria-modal="true" aria-labelledby="radio-modal-title" onclick="if(event.target===this) closeRadioPanel()">
         <div class="radio-modal-content">
-            <!-- تم نقل التحكم للمشغل السفلي والأيقونة العلوية -->
+            <button class="radio-close-btn" onclick="closeRadioPanel()" aria-label="إغلاق الإذاعة">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
 
             <div class="radio-live-badge">
                 <span class="radio-live-pulse" aria-hidden="true"></span>

@@ -672,6 +672,8 @@ function playSurah(id, url, startTime = 0) {
         return;
     }
 
+    if (radioState.isPlaying) pauseRadio();
+
     // تفعيل وضع الاستماع الهادئ فقط عند بدء تشغيل مقطع جديد
     if (!isFocusMode) {
         toggleFocusMode(true);
@@ -680,12 +682,6 @@ function playSurah(id, url, startTime = 0) {
     playingSurahId   = id;
     playingEditionId = currentEdition;
     isBuffering      = true;
-
-    if (radioState.isPlaying) pauseRadio();
-    const player = document.getElementById('global-player');
-    if (player) {
-        player.classList.remove('radio-mode');
-    }
 
     // إذا كانت شاشة القراءة مرتبطة بجزء آخر، حدّثها لتتابع الجزء الجديد تلقائياً
     // (يحدث هذا عند التالي/السابق أو الانتقال التلقائي بعد انتهاء المقطع)
@@ -728,7 +724,10 @@ function playSurah(id, url, startTime = 0) {
     const sName = getTrackName(sData);
 
     const player = document.getElementById('global-player');
-    if (player) player.style.display = 'block';
+    if (player) {
+        player.style.display = 'block';
+        player.classList.remove('radio-mode');
+    }
     
     const trackTitle = document.getElementById('player-track-title');
     if (trackTitle) trackTitle.textContent = sName;
