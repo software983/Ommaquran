@@ -1387,11 +1387,260 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+// ================================================
+// الإذاعة المباشرة الوهمية (Pseudo Live Radio)
+// ================================================
+// فكرة العمل: كل الأجهزة تحسب نفس "الموضع الافتراضي" داخل حلقة تشغيل
+// لا نهائية بالاعتماد فقط على الوقت الحقيقي Date.now() ومدد الملفات
+// الفعلية، بدون أي حفظ لموضع المستخدم. أي مستخدمين يفتحان الإذاعة في
+// نفس اللحظة سيسمعان نفس المقطع في نفس الثانية تقريباً.
+
+const radioAudio = new Audio();
+radioAudio.preload = 'none';
+
+const radioState = {
+    playlist: [],       // [{ title, url, duration }]
+    cumulative: [],     // بداية كل ملف بالثواني من أول الحلقة
+    totalDuration: 0,   // إجمالي مدة الحلقة بالثواني
+    ready: false,       // هل تم قياس كل المدد الفعلية بنجاح
+    loading: false,
+    currentIndex: -1,
+    isPlaying: false,
+    resyncTimer: null
+};
+
+// قياس مدة ملف صوتي واحد فعلياً (metadata فقط دون تحميل الملف كاملاً)
+function probeAudioDuration(url) {
+    return new Promise((resolve) => {
+        const probe = new Audio();
+        probe.preload = 'metadata';
+        let settled = false;
+
+        const finish = (dur) => {
+            if (settled) return;
+            settled = true;
+            probe.src = '';
+            resolve(dur);
+        };
+
+        probe.addEventListener('loadedmetadata', () => {
+            finish(isFinite(probe.duration) && probe.duration > 0 ? probe.duration : 0);
+        });
+        probe.addEventListener('error', () => finish(0));
+        // مهلة أمان في حال بطء الشبكة
+        setTimeout(() => finish(isFinite(probe.duration) && probe.duration > 0 ? probe.duration : 0), 12000);
+
+        probe.src = url;
+    });
+}
+
+// تجهيز قائمة تشغيل الإذاعة وحساب مدد الملفات الفعلية مرة واحدة
+async function loadRadioPlaylist() {
+    if (radioState.ready || radioState.loading) return radioState.ready;
+    radioState.loading = true;
+
+    try {
+        const res = await fetch('radio.json', { cache: 'no-store' });
+        const list = await res.json();
+
+        const withDurations = await Promise.all(
+            list.map(async (item) => ({
+                title: item.title,
+                url: item.url,
+                duration: await probeAudioDuration(item.url)
+            }))
+        );
+
+        // استبعاد أي ملف تعذر قياس مدته لتفادي كسر حساب المواضع
+        const valid = withDurations.filter(f => f.duration > 0);
+
+        if (!valid.length) throw new Error('no valid radio files');
+
+        let cum = 0;
+        const cumulative = [];
+        valid.forEach(f => { cumulative.push(cum); cum += f.duration; });
+
+        radioState.playlist       = valid;
+        radioState.cumulative     = cumulative;
+        radioState.totalDuration  = cum;
+        radioState.ready          = true;
+        return true;
+    } catch (e) {
+        console.warn('Radio playlist load error:', e);
+        showToast(translations[currentLang].networkError);
+        return false;
+    } finally {
+        radioState.loading = false;
+    }
+}
+
+// حساب الموضع الحالي (رقم الملف + الثانية داخله) اعتماداً فقط على الوقت الحقيقي
+function computeLivePosition() {
+    const totalMs = radioState.totalDuration * 1000;
+    if (!totalMs) return { index: 0, offset: 0 };
+
+    const elapsedSec = (Date.now() % totalMs) / 1000;
+
+    let idx = radioState.cumulative.length - 1;
+    for (let i = 0; i < radioState.cumulative.length; i++) {
+        const start = radioState.cumulative[i];
+        const end   = start + radioState.playlist[i].duration;
+        if (elapsedSec >= start && elapsedSec < end) { idx = i; break; }
+    }
+
+    const offset = elapsedSec - radioState.cumulative[idx];
+    return { index: idx, offset: Math.max(0, offset) };
+}
+
+function setRadioLoadingUI(isLoading) {
+    const btn = document.getElementById('radio-play-btn');
+    const icon = document.getElementById('radio-play-icon');
+    if (!btn || !icon) return;
+    btn.classList.toggle('loading', isLoading);
+    icon.innerHTML = isLoading
+        ? '<path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/>'
+        : (radioState.isPlaying ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>' : '<path d="M8 5v14l11-7z"/>');
+}
+
+function updateRadioTrackTitle() {
+    const el = document.getElementById('radio-track-title');
+    if (!el) return;
+    const f = radioState.playlist[radioState.currentIndex];
+    el.textContent = f ? f.title : '';
+}
+
+function setOnAirIndicator(on) {
+    document.getElementById('radio-toggle-btn')?.classList.toggle('on-air', on);
+    document.getElementById('radio-eq')?.classList.toggle('playing', on);
+}
+
+// تشغيل الملف المناسب للحظة الحالية فعلياً على عنصر الصوت
+function tuneInToLivePosition() {
+    const { index, offset } = computeLivePosition();
+    const file = radioState.playlist[index];
+    if (!file) return;
+
+    radioState.currentIndex = index;
+    updateRadioTrackTitle();
+
+    const onReady = () => {
+        radioAudio.currentTime = offset;
+        radioAudio.play().catch(e => console.warn('Radio play error:', e));
+        radioAudio.removeEventListener('loadedmetadata', onReady);
+    };
+
+    radioAudio.pause();
+    radioAudio.src = file.url;
+    radioAudio.addEventListener('loadedmetadata', onReady);
+    radioAudio.load();
+}
+
+// عند انتهاء ملف طبيعياً، ننتقل للملف التالي (وللأول عند نهاية الحلقة)،
+// مع إعادة الحساب من الوقت الحقيقي لتفادي أي انزياح تراكمي
+function handleRadioFileEnded() {
+    if (!radioState.isPlaying) return;
+    tuneInToLivePosition();
+}
+
+// تصحيح دوري لأي انزياح ناتج عن التخزين المؤقت/البطء الشبكي، حتى يبقى
+// المستمعون متزامنين مع بعضهم البعض ومع الوقت الحقيقي
+function startRadioResync() {
+    stopRadioResync();
+    radioState.resyncTimer = setInterval(() => {
+        if (!radioState.isPlaying || radioAudio.paused) return;
+        const { index, offset } = computeLivePosition();
+        if (index !== radioState.currentIndex) {
+            tuneInToLivePosition();
+            return;
+        }
+        if (Math.abs(radioAudio.currentTime - offset) > 4) {
+            radioAudio.currentTime = offset;
+        }
+    }, 15000);
+}
+
+function stopRadioResync() {
+    if (radioState.resyncTimer) {
+        clearInterval(radioState.resyncTimer);
+        radioState.resyncTimer = null;
+    }
+}
+
+async function startRadio() {
+    // إيقاف مشغل السور الرئيسي حتى لا يتداخل الصوتان
+    if (!audioInstance.paused) audioInstance.pause();
+
+    setRadioLoadingUI(true);
+    document.getElementById('radio-track-title').textContent =
+        currentLang === 'ar' ? 'جاري تجهيز البث المباشر...' : 'Tuning in to the live broadcast...';
+
+    const ok = await loadRadioPlaylist();
+    if (!ok) { setRadioLoadingUI(false); return; }
+
+    radioState.isPlaying = true;
+    tuneInToLivePosition();
+    startRadioResync();
+    setOnAirIndicator(true);
+    setRadioLoadingUI(false);
+}
+
+function pauseRadio() {
+    radioState.isPlaying = false;
+    radioAudio.pause();
+    stopRadioResync();
+    setOnAirIndicator(false);
+    setRadioLoadingUI(false);
+}
+
+function toggleRadioPlayback() {
+    if (radioState.isPlaying) {
+        pauseRadio();
+    } else {
+        startRadio();
+    }
+}
+
+function openRadioPanel() {
+    document.getElementById('radio-modal')?.classList.add('show');
+    if (!radioState.isPlaying) startRadio();
+}
+
+function closeRadioPanel() {
+    document.getElementById('radio-modal')?.classList.remove('show');
+    // إغلاق الإذاعة يوقف الصوت تماماً، ولا نحفظ أي موضع؛ في المرة القادمة
+    // سيُعاد حساب الموضع الحي من جديد اعتماداً على الوقت الفعلي فقط
+    pauseRadio();
+}
+
+radioAudio.addEventListener('ended', handleRadioFileEnded);
+radioAudio.addEventListener('waiting', () => setRadioLoadingUI(true));
+radioAudio.addEventListener('playing', () => setRadioLoadingUI(false));
+radioAudio.addEventListener('error', () => {
+    if (radioState.isPlaying) showToast(translations[currentLang].networkError);
+});
+
+// إيقاف الإذاعة تلقائياً إذا بدأ المستخدم تشغيل سورة من المشغل الرئيسي
+const _originalPlaySurah = playSurah;
+playSurah = function (...args) {
+    if (radioState.isPlaying) pauseRadio();
+    return _originalPlaySurah.apply(this, args);
+};
+
+const _originalTogglePlayPause = togglePlayPause;
+togglePlayPause = function (...args) {
+    if (radioState.isPlaying && audioInstance.paused && audioInstance.src) pauseRadio();
+    return _originalTogglePlayPause.apply(this, args);
+};
+
 // ── التهيئة الأولى ──
 
 (async () => {
     const themeBtn = document.getElementById('theme-toggle-btn');
     if (themeBtn) themeBtn.innerHTML = currentTheme === 'dark' ? icons.moon : icons.sun;
+
+    // تجهيز مدد ملفات الإذاعة في الخلفية دون تشغيل أي شيء، حتى يكون
+    // حساب الموضع الحي جاهزاً فوراً عند فتح الإذاعة لأول مرة
+    loadRadioPlaylist();
 
     setPlaybackMode('autonext');
 
